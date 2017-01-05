@@ -21,6 +21,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -31,19 +33,33 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataItem;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Wearable;
+
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Digital watch face with seconds. In ambient mode, the seconds aren't displayed. On devices with
+ * Digital watch face with weather forecast. In ambient mode, the bitmap is not displayed. On devices with
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
 public class MyWatchFace extends CanvasWatchFaceService {
@@ -94,6 +110,19 @@ public class MyWatchFace extends CanvasWatchFaceService {
         Paint mTextPaintDate;
         Paint mTextPaintTempHigh;
         Paint mTextPaintTempLow;
+        Paint mDividerPaint;
+
+        final String TAG = "sync wear";
+        String maxTemp = "";
+        String minTemp = "";
+        Bitmap mWeatherBitmap;
+        private static final String TEMP_ICON_KEY = "com.example.android.sunshine.key.icon";
+        private static final String TEMP_MIN_KEY = "com.example.android.sunshine.key.temp.min";
+        private static final String TEMP_MAX_KEY = "com.example.android.sunshine.key.temp.max";
+
+        private GoogleApiClient mGoogleApiClient;
+        Date mDate;
+
         boolean mAmbient;
         Calendar mCalendar;
         final SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, MMM d yyyy", Locale.getDefault());
@@ -110,6 +139,47 @@ public class MyWatchFace extends CanvasWatchFaceService {
          * disable anti-aliasing in ambient mode.
          */
         boolean mLowBitAmbient;
+
+        DataApi.DataListener dataListener = new DataApi.DataListener() {
+            @Override
+            public void onDataChanged(DataEventBuffer dataEventBuffer) {
+                for(DataEvent event : dataEventBuffer) {
+                    if(event.getType() == DataEvent.TYPE_CHANGED) {
+                        DataItem item = event.getDataItem();
+                        if(item.getUri().getPath().compareTo("/weather") == 0) {
+                            DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
+                            minTemp = Math.round(dataMap.getDouble(TEMP_MIN_KEY)) + "°";
+                            maxTemp = Math.round(dataMap.getDouble(TEMP_MAX_KEY)) + "°";
+                            Asset tempAsset = dataMap.getAsset(TEMP_ICON_KEY);
+                            mWeatherBitmap = loadBitmapFromAsset(tempAsset);
+                        }
+                    }
+                }
+            }
+
+            public Bitmap loadBitmapFromAsset(Asset asset) {
+                if (asset == null) {
+                    throw new IllegalArgumentException("Asset must be non-null");
+                }
+                ConnectionResult result =
+                        mGoogleApiClient.blockingConnect(5000, TimeUnit.MILLISECONDS);
+                if (!result.isSuccess()) {
+                    return null;
+                }
+                // convert asset into a file descriptor and block until it's ready
+                InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                        mGoogleApiClient, asset).await().getInputStream();
+                // Argh don't discount the watch!
+                //mGoogleApiClient.disconnect();
+
+                if (assetInputStream == null) {
+                    Log.w(TAG, "Requested an unknown Asset.");
+                    return null;
+                }
+                // decode the stream into a bitmap
+                return BitmapFactory.decodeStream(assetInputStream);
+            }
+        };
 
         @Override
         public void onCreate(SurfaceHolder holder) {
