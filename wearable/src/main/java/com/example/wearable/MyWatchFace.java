@@ -356,7 +356,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 if(!mAmbient) {
                     canvas.drawBitmap(mWeatherBitmap,
                             null,
-                            new Rect(bounds.centerX() - (int) mTextPaintTempHigh.measureText(maxTemp + minTemp))/2, (int)getResources().getDimension(R.dimen.temp_y_offset), 1, 1),
+                            new Rect(
+                                    bounds.centerX() - ((int) mTextPaintTempHigh.measureText(maxTemp + minTemp)/2) + 20 ,
+                                    (int)getResources().getDimension(R.dimen.temp_y_offset),
+                                    bounds.centerX() - ((int) mTextPaintTempHigh.measureText(maxTemp + minTemp)/2),
+                                    (int)getResources().getDimension(R.dimen.temp_y_offset) + 20),
                             null
                     );
                     canvas.drawText(maxTemp, 1,
