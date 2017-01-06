@@ -31,6 +31,8 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
@@ -210,7 +212,33 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mTextPaintTempLow = createTextPaint(resources.getColor(R.color.digital_text_light));
             mTextPaintTempLow.setTextSize(getResources().getDimension(R.dimen.text_size_temp));
 
+            mDividerPaint = new Paint();
+            mDividerPaint = createTextPaint(resources.getColor(R.color.digital_text_light));
+
             mCalendar = Calendar.getInstance();
+
+            mGoogleApiClient = new GoogleApiClient.Builder(getApplicationContext())
+                    .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                        @Override
+                        public void onConnected(@Nullable Bundle bundle) {
+                            Wearable.DataApi.addListener(mGoogleApiClient, dataListener);
+                        }
+
+                        @Override
+                        public void onConnectionSuspended(int cause) {
+                            Log.d(TAG, "onConnectionSuspended: " + cause);
+                        }
+                    })
+                    .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
+                        @Override
+                        public void onConnectionFailed(@NonNull ConnectionResult result) {
+                            Log.d(TAG, "onConnectionFailed: " + result);
+                        }
+                    })
+                    .addApi(Wearable.API)
+                    .build();
+
+            mGoogleApiClient.connect();
         }
 
         @Override
@@ -319,12 +347,32 @@ public class MyWatchFace extends CanvasWatchFaceService {
             String timeText = String.format(Locale.ENGLISH, "%02d:%02d", mCalendar.get(Calendar.HOUR),
                     mCalendar.get(Calendar.MINUTE));
             String dateText = dateFormat.format(mCalendar.getTime()).toUpperCase();
-            String tempHighText = "";
-            String tempLowText = "";
             canvas.drawText(timeText, bounds.centerX() - (mTextPaintTime.measureText(timeText))/2,
                     getResources().getDimension(R.dimen.time_y_offset), mTextPaintTime);
             canvas.drawText(dateText, bounds.centerX() - (mTextPaintDate.measureText(dateText))/2,
                     getResources().getDimension(R.dimen.date_y_offset), mTextPaintDate);
+
+            if(mWeatherBitmap != null) {
+                if(!mAmbient) {
+                    canvas.drawBitmap(mWeatherBitmap,
+                            null,
+                            new Rect(bounds.centerX() - (int) mTextPaintTempHigh.measureText(maxTemp + minTemp))/2, (int)getResources().getDimension(R.dimen.temp_y_offset), 1, 1),
+                            null
+                    );
+                    canvas.drawText(maxTemp, 1,
+                            getResources().getDimension(R.dimen.temp_y_offset), mTextPaintTempHigh);
+                    canvas.drawText(minTemp, 1,
+                            getResources().getDimension(R.dimen.temp_y_offset), mTextPaintTempLow);
+                } else {
+                    canvas.drawText(maxTemp, bounds.centerX() - (mTextPaintTempHigh.measureText(maxTemp + minTemp))/2,
+                            getResources().getDimension(R.dimen.temp_y_offset), mTextPaintTempHigh);
+                    canvas.drawText(minTemp, bounds.centerX(),
+                            getResources().getDimension(R.dimen.temp_y_offset), mTextPaintTempLow);
+                }
+            } else {
+                canvas.drawText("No Weather Data", bounds.centerX() - (mTextPaintTempLow.measureText("No Weather Data"))/2,
+                        getResources().getDimension(R.dimen.temp_y_offset), mTextPaintTempLow);
+            }
 
         }
 
