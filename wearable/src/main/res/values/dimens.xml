@@ -3,6 +3,7 @@
     <dimen name="text_size_time">44dp</dimen>
     <dimen name="text_size_date">20dp</dimen>
     <dimen name="text_size_temp">28dp</dimen>
+    <dimen name="text_size_error">16dp</dimen>
 
     <dimen name="digital_text_size_round">45dp</dimen>
 
@@ -11,4 +12,8 @@
     <dimen name="temp_y_offset">162dp</dimen>
 
     <dimen name="digital_x_offset_round">25dp</dimen>
+
+    <dimen name="digital_x_offset">15dp</dimen>
+    <dimen name="digital_text_size">40dp</dimen>
+    <dimen name="digital_y_offset">90dp</dimen>
 </resources>
